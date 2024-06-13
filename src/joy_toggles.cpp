@@ -12,6 +12,8 @@ public:
     std::string joy_topic;
     _nh.param<std::string>("joy_topic", joy_topic, "joy");
     _joy_sub = _nh.subscribe(joy_topic, 1, &JoyToggles::joy_callback, this);
+    _presses_pub = _nh.advertise<std_msgs::UInt64>("joy/toggles/presses", 1);
+    _releases_pub = _nh.advertise<std_msgs::UInt64>("joy/toggles/releases", 1);
     _reset_service = _private_nh.advertiseService("reset", &JoyToggles::reset_callback, this);
   }
 
@@ -24,6 +26,8 @@ public:
       pub_pair.first.shutdown();
       pub_pair.second.shutdown();
     }
+    _presses_pub.shutdown();
+    _releases_pub.shutdown();
   }
 
 private:
@@ -42,11 +46,17 @@ private:
       {
         _presses_counter[i].data += 1;
         _publishers[i].first.publish(_presses_counter[i]);
+        auto msg = std_msgs::UInt64();
+        msg.data = i;
+        _presses_pub.publish(msg);
       }
       else if (current < last)
       {
         _releases_counter[i].data +=1 ;
         _publishers[i].second.publish(_releases_counter[i]);
+        auto msg = std_msgs::UInt64();
+        msg.data = i;
+        _releases_pub.publish(msg);
       }
       _last_buttons[i] = current;
     }
@@ -113,6 +123,7 @@ private:
   ros::NodeHandle _nh;
   ros::NodeHandle _private_nh;
   ros::Subscriber _joy_sub;
+  ros::Publisher _presses_pub, _releases_pub;
   std::vector<std::pair<ros::Publisher, ros::Publisher>> _publishers;
   ros::ServiceServer _reset_service;
 
